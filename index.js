@@ -1,42 +1,85 @@
-const express =require('express');
-const bodyParser=require('body-parser');
-const axios=require('axios');
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const fs = require('fs');
 
-const app=express();
-app.use(bodyParser.json);
+const app = express();
+const PORT = 3000;
+const SECRET_KEY = 'clave_secreta';
 
-const nodosEncriptacion =[ //Nodos diponibles para solicitar trabajo
-    {id:1,url:'http://localhost:8081/encripte',status:'disponible'},
-    {id:2,url:'http://localhost:8082/encripte',status:'disponible'},
-    {id:3,url:'http://localhost:8083/encripte',status:'disponible'}
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+
+// Simular base de datos
+const users = [
+    { id: 1, username: 'user', password: bcrypt.hashSync('flath', 10) },
+    { id: 2, username: 'user2', password: bcrypt.hashSync('password2', 10) },
+    { id: 3, username: 'saul', password: bcrypt.hashSync('force', 10) }
 ];
 
-//Se asigna trabajo a un nodo
-const asignarNodo=()=>nodosEncriptacion.find(nodo=>nodo.status==='disponible');
+// Ruta para iniciar sesión
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = users.find(u => u.username === username);
+    console.log(`Solicitud de:  ${username}`);
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json({ message: 'Credenciales incorrectas' });
+    }
 
-app.post('/encripte',async(req,res)=>{
-    const {texto,algoritmo,key}=req.body;
-    if(!texto||!algoritmo||!key){//Validacion de parametros
-        return res.status(400).send({error:'Faltan parametros para relizar el trabajo... '});
+    // Crear token
+    const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, {
+        expiresIn: '1h',
+    });
+
+    res.json({ token });
+});
+
+// Ruta protegida
+app.get('/api/protected', (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ message: 'Token no proporcionado' });
     }
-    const nodo=asignarNodo();
-    if(!nodo){
-        return res.status(503).send({error:'El servidor no esta disponible para nuevas tareas... '})
-    }
-    nodo.status='ocupado';
-    try{//Envio de la tarea
-        const response=await axios.post(nodo.url,{texto,algoritmo,key});
-        nodo.status="disponible";
-        return res.send(response,datos);
-    }catch(error){
-        nodo.status='disponible';
-        return res.status(500).send({error:'Error al procesar el nodo... '})
+
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        res.json({ message: 'Acceso permitido', user: decoded });
+    } catch (err) {
+        res.status(401).json({ message: 'Token inválido' });
     }
 });
 
-//Arranque de servidor 
-const PORT=3000;
-app.listen(PORT,()=>{
-    console.log(`Servidor corriendo en puerto: ${PORT}`);
-    console.log(`http://localhost:${PORT}`);
-})
+app.get('/api/tarea', (req, res) => {
+    const texto = "Texto a encriptar en el cliente";
+    res.json({ texto });
+  });
+  
+  // Ruta para guardar el texto encriptado
+// Ruta para guardar la tarea (texto encriptado)
+app.post('/api/tarea', (req, res) => {
+    const textoEncriptado = req.body.textoEncriptado;
+    console.log("Texto recivido: "+req.body.textoEncriptado);
+    // Verificar si el texto encriptado fue enviado correctamente
+    if (!textoEncriptado) {
+      return res.status(400).json({ error: 'No se proporcionó texto encriptado' });
+    }
+  
+    // Intentar guardar el texto encriptado
+    fs.appendFile('tareas_encriptadas.txt', textoEncriptado + '\n', (err) => {
+      if (err) {
+        console.error('Error al guardar el texto:', err); // Esto ayudará a ver el error en los logs del servidor
+        return res.status(500).json({ error: 'No se pudo guardar el texto' });
+      }
+  
+      // Si se guarda correctamente
+      res.status(200).json({ mensaje: 'Texto encriptado almacenado correctamente' });
+    });
+  });
+// Iniciar servidor
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
