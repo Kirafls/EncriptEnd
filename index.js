@@ -4,7 +4,9 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
-
+const mysql=require('mysql');
+//declaracion de las funciuones de mysql
+const {altaUser,buscarUser}=require('./consultas');
 const app = express();
 const PORT = 3000;
 const SECRET_KEY = 'clave_secreta';
@@ -13,28 +15,72 @@ const SECRET_KEY = 'clave_secreta';
 app.use(cors());
 app.use(bodyParser.json());
 
-// Simular base de datos
+//conexion a la base de datos
+const connection =mysql.createConnection({
+  host:"localhost",
+  user:"root",
+  password:"",
+  database:"encript",//Nombre de la base de datos
+});
+
+connection.connect((err)=>{
+  if(err) throw err;
+  console.log("Conexion con la base de datos... ");
+})
+
 const users = [
     { id: 1, username: 'user', password: bcrypt.hashSync('flath', 10) },
     { id: 2, username: 'user2', password: bcrypt.hashSync('password2', 10) },
     { id: 3, username: 'saul', password: bcrypt.hashSync('force', 10) }
 ];
 
-// Ruta para iniciar sesión
+app.post('/bd/nuser', (req, res) => {
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body); // Esto debería mostrar el cuerpo de la solicitud
+
+  const { user, contra } = req.body;
+  if (!user || !contra) {
+    return res.status(400).json({ message: 'User y Contra son obligatorios' });
+  }
+
+  console.log(user + "  " + contra);
+  altaUser(connection, { user: user, contra: contra }, result => {
+    res.send(result);
+  });
+});
+
 app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    const user = users.find(u => u.username === username);
-    console.log(`Solicitud de:  ${username}`);
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-        return res.status(401).json({ message: 'Credenciales incorrectas' });
-    }
+  const { username, password } = req.body;
 
-    // Crear token
-    const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, {
-        expiresIn: '1h',
-    });
+  buscarUser(connection, { user: username }, result => {
+      if (result.length === 0) {
+          return res.status(401).json({ message: 'Usuario no encontrado' });
+      }
 
-    res.json({ token });
+      const user = result[0];
+      console.log(`Solicitud de: ${username}`);
+      console.log('Resultado de la consulta:', result);
+
+      if (!user.passw) {
+          console.error('Error: el campo passw está indefinido.');
+          return res.status(500).json({ message: 'Error interno del servidor' });
+      }
+
+      if (password !==user.passw){
+          console.log(password+' '+user.passw);
+          console.error('Credenciales incorrectas ...');
+          return res.status(401).json({ message: 'Credenciales incorrectas' });
+      }
+
+      // Crear token
+      const token = jwt.sign({ id: user.id, username: user.user }, SECRET_KEY, {
+          expiresIn: '1h',
+          
+      });
+
+      res.json({ token });
+      console.log('Se ha iniciado sesion');
+  });
 });
 
 // Ruta protegida
