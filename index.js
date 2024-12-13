@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const mysql=require('mysql');
 //declaracion de las funciuones de mysql
-const {altaUser,buscarUser}=require('./consultas');
+const {altaUser,buscarUser,nuevaSol,buscarTarea,updateState}=require('./consultas');
 const app = express();
 const PORT = 3000;
 const SECRET_KEY = 'clave_secreta';
@@ -28,11 +28,26 @@ connection.connect((err)=>{
   console.log("Conexion con la base de datos... ");
 })
 
-const users = [
-    { id: 1, username: 'user', password: bcrypt.hashSync('flath', 10) },
-    { id: 2, username: 'user2', password: bcrypt.hashSync('password2', 10) },
-    { id: 3, username: 'saul', password: bcrypt.hashSync('force', 10) }
-];
+
+app.post('/bd/sol', (req, res) => {
+  const { mensaje, llave, algoritmo } = req.body;
+  
+  try {
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    console.log(mensaje + " " + llave + " " + algoritmo);
+
+    nuevaSol(connection, req.body, result => {
+      if (result.error) {
+        return res.status(500).send({ error: 'Error al procesar la solicitud' });
+      }
+      res.send(result);
+    });
+  } catch (error) {
+    console.error('Error en el servidor:', error);
+    res.status(500).send({ error: 'Error interno del servidor' });
+  }
+});
 
 app.post('/bd/nuser', (req, res) => {
   console.log('Headers:', req.headers);
@@ -48,6 +63,7 @@ app.post('/bd/nuser', (req, res) => {
     res.send(result);
   });
 });
+
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
@@ -100,8 +116,9 @@ app.get('/api/protected', (req, res) => {
 });
 
 app.get('/api/tarea', (req, res) => {
-    const texto = "Texto a encriptar en el cliente";
-    res.json({ texto });
+    buscarTarea(connection,result=>{      
+      res.json(result);
+      })
   });
   
   // Ruta para guardar el texto encriptado
