@@ -5,15 +5,27 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const mysql=require('mysql');
+const path = require('path');
+require('dotenv').config();
 //declaracion de las funciuones de mysql
-const {altaUser,buscarUser,nuevaSol,buscarTarea,updateState}=require('./consultas');
+const {altaUser,buscarUser,nuevaSol,buscarTarea,cambioEstado,tareaCompleta,userCreditos,bestScore}=require('./consultas');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const SECRET_KEY = 'clave_secreta';
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+
+// Servir los archivos estáticos de Angular
+app.use(express.static(path.join(__dirname, 'dist/front-end')));
+
+// Rutas de la aplicación
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist/front-end/index.html'));
+});
+
+
 
 //conexion a la base de datos
 const connection =mysql.createConnection({
@@ -33,9 +45,9 @@ app.post('/bd/sol', (req, res) => {
   const { mensaje, llave, algoritmo } = req.body;
   
   try {
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
-    console.log(mensaje + " " + llave + " " + algoritmo);
+    //console.log('Headers:', req.headers);
+    //console.log('Body:', req.body);
+    //console.log(mensaje + " " + llave + " " + algoritmo);
 
     nuevaSol(connection, req.body, result => {
       if (result.error) {
@@ -48,6 +60,37 @@ app.post('/bd/sol', (req, res) => {
     res.status(500).send({ error: 'Error interno del servidor' });
   }
 });
+
+app.post('/bd/cambio',(req,res)=>{
+  cambioEstado(connection,req.body,result=>{
+    if(result.err){
+      return res.status(500).send({error:'Falla al procesar la solicitud'});
+    }
+    res.send(result);
+  });
+})
+
+app.post('/mostrar/creditos',(req,res)=>{
+  console.log(req.body.user);
+  userCreditos(connection,req.body,result=>{
+    res.json(result);
+  })
+})
+
+app.get('/mostrar/colaborador',(req,res)=>{
+  bestScore(connection,result=>{
+    res.json(result);
+  })
+})
+
+app.post('/bd/completo',(req,res)=>{
+  tareaCompleta(connection,req.body,result=>{
+    if(result.error){
+      return res.status(500).send({error:'Falla en el servidor'})
+    }
+    res.send(result);
+  })
+})
 
 app.post('/bd/nuser', (req, res) => {
   console.log('Headers:', req.headers);

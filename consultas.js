@@ -48,7 +48,7 @@ function buscarTarea(conection,callback){
 }
 
 function cambioEstado(conection,data,callback){
-    let update="UPDATE `tareas` SET `estado` = '1' WHERE `tareas`.`id` = ?; ";
+    let update="UPDATE `tareas` SET `estado` = '1' WHERE `id` = ?; ";
     let query=mysql.format(update,[data.id]);
     conection.query(query,function(err,result){
         if(err){
@@ -61,7 +61,7 @@ function cambioEstado(conection,data,callback){
 
 function tareaCompleta(conection,data,callback){
     let update="UPDATE `tareas` SET `cifrado`=?,`credito`=?,`user`=? WHERE`id`=?";
-    let query=mysql.format(update,[data.cifrado,data.credito,data.user]);
+    let query=mysql.format(update,[data.cifrado,data.credito,data.user,data.id]);
     conection.query(query,function(err,result){
         if(err){
             console.log("Error al guardar datos");
@@ -72,7 +72,7 @@ function tareaCompleta(conection,data,callback){
 }
 
 function userCreditos(conection,data,callback){
-    let select="SELECT SUM(credito) AS Suma_total FROM `tareas` WHERE `user`=?;"
+    let select="SELECT SUM(credito) AS Suma_total FROM `tareas` WHERE `user`=?"
     let query=mysql.format(select,[data.user]);
     conection.query(query,function(err,result){
         if(err){
@@ -94,4 +94,4 @@ function bestScore(conection,callback){
         callback(result);
     })
 }
-module.exports={altaUser,buscarUser,nuevaSol,buscarTarea,cambioEstado};//Se tienen que exportar cada una de las funciones
+module.exports={altaUser,buscarUser,nuevaSol,buscarTarea,cambioEstado,tareaCompleta,userCreditos,bestScore};//Se tienen que exportar cada una de las funciones
