@@ -1,3 +1,4 @@
+const { query } = require("express");
 const mysql =require("mysql");
 
 function altaUser(conection,data,callback){
@@ -46,5 +47,51 @@ function buscarTarea(conection,callback){
     })
 }
 
+function cambioEstado(conection,data,callback){
+    let update="UPDATE `tareas` SET `estado` = '1' WHERE `tareas`.`id` = ?; ";
+    let query=mysql.format(update,[data.id]);
+    conection.query(query,function(err,result){
+        if(err){
+            console.log("No se actualizo");
+            throw err;
+        }
+        callback(result);
+    })
+}
 
-module.exports={altaUser,buscarUser,nuevaSol,buscarTarea};//Se tienen que exportar cada una de las funciones
+function tareaCompleta(conection,data,callback){
+    let update="UPDATE `tareas` SET `cifrado`=?,`credito`=?,`user`=? WHERE`id`=?";
+    let query=mysql.format(update,[data.cifrado,data.credito,data.user]);
+    conection.query(query,function(err,result){
+        if(err){
+            console.log("Error al guardar datos");
+            throw err;
+        }
+        callback(result);
+    })
+}
+
+function userCreditos(conection,data,callback){
+    let select="SELECT SUM(credito) AS Suma_total FROM `tareas` WHERE `user`=?;"
+    let query=mysql.format(select,[data.user]);
+    conection.query(query,function(err,result){
+        if(err){
+            console.log("Ha fallado el servidor");
+            throw err
+        }
+        callback(result);
+    })
+}
+
+function bestScore(conection,callback){
+    let select="SELECT user, SUM(credito) AS Credito_total FROM tareas GROUP BY user ORDER BY Credito_total DESC LIMIT 3;"
+    let query=mysql.format(select)
+    conection.query(query,function(err,result){
+        if(err){
+            console.log("Ha ocurrido un error en el sevidor");
+            throw err;
+        }
+        callback(result);
+    })
+}
+module.exports={altaUser,buscarUser,nuevaSol,buscarTarea,cambioEstado};//Se tienen que exportar cada una de las funciones
